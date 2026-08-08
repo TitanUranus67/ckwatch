@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ckwatch</title>
+<link rel="stylesheet" href="/static/vendor/uPlot.min.css">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --dim: #8b949e; --accent: #f7931a;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 24px 40px; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 4px 0 16px; }
+  h1 .tag { color: var(--accent); }
+  h2 { font-size: 15px; margin: 24px 0 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .card .label { color: var(--dim); font-size: 12px; }
+  .card .value { font-size: 20px; font-weight: 600; margin-top: 2px; white-space: nowrap; }
+  .card .sub { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  table { border-collapse: collapse; width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--dim); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  th:first-child, td:first-child { text-align: left; }
+  tr:last-child td { border-bottom: none; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.active { background: var(--green); } .dot.idle { background: var(--yellow); } .dot.offline { background: var(--red); }
+  .chart-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .ranges { margin: 0 0 10px; display: flex; gap: 6px; }
+  .ranges button {
+    background: var(--panel); color: var(--dim); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px;
+  }
+  .ranges button.sel { color: var(--text); border-color: var(--accent); }
+  .luck { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .bar { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .bar > div { height: 100%; background: var(--accent); }
+  .empty { color: var(--dim); padding: 12px; }
+  tr.pool-record td { color: var(--accent); }
+  #err { color: var(--red); margin: 8px 0; display: none; }
+</style>
+</head>
+<body>
+<h1>ckwatch <span class="tag">&#9889;</span> <span id="updated" style="color:var(--dim);font-size:12px;font-weight:400"></span></h1>
+<div id="err"></div>
+
+<h2>Pool</h2>
+<div class="cards" id="pool-cards"></div>
+
+<h2>Solo luck</h2>
+<div class="luck" id="luck"></div>
+
+<h2>Workers</h2>
+<table id="workers">
+  <thead><tr>
+    <th>Worker</th><th>Status</th><th>1m</th><th>5m</th><th>1hr</th><th>1d</th><th>7d</th>
+    <th>Shares</th><th>Best share</th><th>Best ever</th><th>Last share</th>
+  </tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2>Recent bests</h2>
+<div id="bests"></div>
+
+<h2>Hashrate history</h2>
+<div class="chart-wrap">
+  <div class="ranges" id="ranges">
+    <button data-r="24h" class="sel">24h</button>
+    <button data-r="7d">7d</button>
+    <button data-r="30d">30d</button>
+    <button data-r="all">all</button>
+  </div>
+  <div id="chart-pool"></div>
+  <div id="chart-workers" style="margin-top:12px"></div>
+</div>
+
+<h2>Blocks found</h2>
+<div id="blocks"></div>
+
+<script src="/static/vendor/uPlot.iife.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+services:
+  ckwatch:
+    build: .
+    container_name: ckwatch
+    ports:
+      - "8080:8080"
+    volumes:
+      # ckwatch is strictly read-only against ckpool's files
+      - /path/to/ckpool/logs:/ckpool/logs:ro
+      - ./data:/data
+    restart: unless-stopped

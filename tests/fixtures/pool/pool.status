@@ -1,0 +1,3 @@
+{"runtime": 8145194, "lastupdate": 1785898298, "Users": 3, "Workers": 3, "Idle": 3, "Disconnected": 0}
+{"hashrate1m": "34.2G", "hashrate5m": "2.12T", "hashrate15m": "5.58T", "hashrate1hr": "7.67T", "hashrate6hr": "8.41T", "hashrate1d": "8.84T", "hashrate7d": "8.53T"}
+{"diff": 0.04, "accepted": 50619919063, "rejected": 107733665, "bestshare": 67040371318, "SPS1m": 3.99e-5, "SPS5m": 0.00247, "SPS15m": 0.0065, "SPS1h": 0.00893}

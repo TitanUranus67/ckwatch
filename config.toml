@@ -1,0 +1,32 @@
+# ckwatch configuration.
+# Environment variables override these values:
+#   CKWATCH_LOG_DIR, CKWATCH_DB, CKWATCH_PORT, CKWATCH_HOST, CKWATCH_CONFIG
+
+# Path to ckpool's logs directory (contains pool/, users/, workers/, ckpool.log).
+log_dir = "/ckpool/logs"
+
+# SQLite database path (log tailer state file lives alongside it).
+db_path = "./data/ckwatch.db"
+
+host = "0.0.0.0"
+port = 8080
+
+# Seconds between status-file snapshots.
+poll_interval = 60
+# Seconds between hourly-rollup / pruning passes.
+rollup_interval = 3600
+# Raw per-minute snapshots are kept this many days; hourly rollups are kept forever.
+retention_days = 30
+
+# Fallback network difficulty (diff1 units) used when mempool.space is unreachable.
+# Check https://mempool.space/api/blocks/tip/hash -> block difficulty and update
+# after each retarget if you want an accurate offline fallback.
+network_difficulty_fallback = 1.2e14
+# Seconds to cache the fetched difficulty.
+difficulty_cache_ttl = 600
+
+# Optional ntfy.sh notification when a block is found. Off by default.
+[ntfy]
+enabled = false
+url = "https://ntfy.sh/ckwatch"
+priority = "high"

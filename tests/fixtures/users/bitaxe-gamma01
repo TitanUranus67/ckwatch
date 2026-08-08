@@ -1,0 +1,27 @@
+{
+ "hashrate1m": "135M",
+ "hashrate5m": "78.7G",
+ "hashrate1hr": "912G",
+ "hashrate1d": "650G",
+ "hashrate7d": "681G",
+ "lastshare": 1785896960,
+ "workers": 1,
+ "shares": 6986467080,
+ "bestshare": 6432394954.674021,
+ "bestever": 6432394954,
+ "authorised": 1756069534,
+ "worker": [
+  {
+   "workername": "bitaxe-gamma01",
+   "hashrate1m": "135M",
+   "hashrate5m": "78.7G",
+   "hashrate1hr": "912G",
+   "hashrate1d": "650G",
+   "hashrate7d": "681G",
+   "lastshare": 1785896960,
+   "shares": 6986467080,
+   "bestshare": 6432394954.674021,
+   "bestever": 6432394954
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+{
+ "hashrate1m": "0",
+ "hashrate5m": "0",
+ "hashrate1hr": "0",
+ "hashrate1d": "5M",
+ "hashrate7d": "7.77T",
+ "lastshare": 1776211207,
+ "workers": 0,
+ "shares": 33738103991,
+ "bestshare": 4691425109.73772,
+ "bestever": 4691425109,
+ "authorised": 1772106553,
+ "worker": []
+}
