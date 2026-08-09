@@ -120,6 +120,7 @@ function chartOpts(title, series) {
       { stroke: "#8b949e", grid: { stroke: "#21262d" } },
       {
         stroke: "#8b949e", grid: { stroke: "#21262d" },
+        size: 70, // leave room for labels like "10.52 TH/s"
         values: (u, vals) => vals.map(v => fmtHashrate(v)),
       },
     ],
