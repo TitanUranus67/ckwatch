@@ -19,6 +19,8 @@ class NtfyConfig:
     enabled: bool = False
     url: str = "https://ntfy.sh/ckwatch"
     priority: str = "high"
+    notify_best: bool = True     # alert when a worker beats its best difficulty
+    notify_offline: bool = True  # alert when a worker goes offline / recovers
 
 
 @dataclass
@@ -57,7 +59,7 @@ def load_config(path: str | None = None) -> Config:
             if key in data:
                 setattr(cfg, key, data[key])
         if "ntfy" in data:
-            for key in ("enabled", "url", "priority"):
+            for key in ("enabled", "url", "priority", "notify_best", "notify_offline"):
                 if key in data["ntfy"]:
                     setattr(cfg.ntfy, key, data["ntfy"][key])
 

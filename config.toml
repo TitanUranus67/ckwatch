@@ -30,3 +30,5 @@ difficulty_cache_ttl = 600
 enabled = false
 url = "https://ntfy.sh/ckwatch"
 priority = "high"
+notify_best = true     # alert when a worker beats its best difficulty
+notify_offline = true  # alert when a worker goes offline / recovers

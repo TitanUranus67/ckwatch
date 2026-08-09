@@ -17,7 +17,7 @@ read (read-only) from ckpool's own log directory.
 - Solo-luck panel: best share vs current network difficulty (fetched from
   mempool.space, cached, with a static fallback) and estimated average time-to-block.
 - Block-found detection (`Solved and confirmed block` log lines) with an
-  optional ntfy.sh notification (off by default).
+  plus new-personal-best and worker offline/recovered alerts via ntfy.sh (off by default).
 - Retention: raw per-minute snapshots kept 30 days, hourly rollups kept forever.
 
 ## How it works
@@ -69,7 +69,7 @@ The solo-luck panel fetches network difficulty from mempool.space (cached
 10 min). If the host has no internet, set `network_difficulty_fallback` in
 `config.toml` to the current difficulty after each retarget.
 
-To get a notification when a block is found, enable ntfy in `config.toml`:
+To get notifications (block found, new personal best, worker offline/recovered), enable ntfy in `config.toml`:
 
 ```toml
 [ntfy]

@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import db
-from .collector import collector_loop
+from .collector import collector_loop, worker_status
 from .config import Config, load_config
 from .logtail import LogTailer, logtail_loop
 from .luck import DifficultyCache, format_eta, send_ntfy, solo_luck
@@ -29,9 +29,6 @@ RANGES = {
     "30d": (30 * 86400, 7200),
     "all": (None, 7200),
 }
-
-STATUS_ACTIVE_S = 300
-STATUS_IDLE_S = 1800
 
 # ckpool freezes a disconnected worker's decaying-average hashrates mid-decay
 # (they only update on new shares), so a long-dead worker can show a nonzero
@@ -59,28 +56,46 @@ class AppState:
         )
         self.tailor = LogTailer(self.conn, cfg, on_block=self._on_block)
 
-    def _on_block(self, ev: dict) -> None:
+    def _notify(self, title: str, message: str) -> None:
         if not self.cfg.ntfy.enabled:
             return
         try:
-            send_ntfy(
-                self.cfg.ntfy.url,
-                self.cfg.ntfy.priority,
-                "ckwatch: BLOCK FOUND!",
-                f"ckpool solved a block!\n{ev.get('text', '')}",
-            )
+            send_ntfy(self.cfg.ntfy.url, self.cfg.ntfy.priority, title, message)
         except Exception:
             log.exception("ntfy notification failed")
 
+    def _on_block(self, ev: dict) -> None:
+        self._notify("ckwatch: BLOCK FOUND!",
+                     f"ckpool solved a block!\n{ev.get('text', '')}")
+
+    def _on_best(self, worker: str, value: float) -> None:
+        if not self.cfg.ntfy.notify_best:
+            return
+        log.info("new best for %s: %.0f", worker, value)
+        self._notify("ckwatch: new best!",
+                     f"{worker} set a new best difficulty: {_fmt_diff(value)}")
+
+    def _on_status(self, worker: str, status: str) -> None:
+        if not self.cfg.ntfy.notify_offline:
+            return
+        log.info("worker %s -> %s", worker, status)
+        if status == "offline":
+            self._notify("ckwatch: worker offline",
+                         f"{worker} has not submitted a share in over 30 minutes")
+        else:
+            self._notify("ckwatch: worker back online",
+                         f"{worker} is submitting shares again ({status})")
+
+
+def _fmt_diff(d: float) -> str:
+    for unit, scale in (("T", 1e12), ("G", 1e9), ("M", 1e6), ("K", 1e3)):
+        if d >= scale:
+            return f"{d / scale:.2f}{unit}"
+    return f"{d:.2f}"
+
 
 def _worker_status(w: dict, now: int) -> str:
-    lastshare = w.get("lastshare") or 0
-    age = now - lastshare
-    if age < STATUS_ACTIVE_S:
-        return "active"
-    if age < STATUS_IDLE_S:
-        return "idle"
-    return "offline"
+    return worker_status(w.get("lastshare"), now)
 
 
 def create_app(cfg: Config | None = None) -> FastAPI:
@@ -90,7 +105,9 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         tasks = [
-            asyncio.create_task(collector_loop(state.conn, cfg, state.lock)),
+            asyncio.create_task(collector_loop(
+                state.conn, cfg, state.lock,
+                on_best=state._on_best, on_status=state._on_status)),
             asyncio.create_task(logtail_loop(state.tailor, lock=state.lock)),
         ]
         yield

@@ -99,3 +99,4 @@ def test_missing_log_file(tmp_path):
     cfg, conn = _setup(tmp_path, copy_log=False)
     tailer = LogTailer(conn, cfg)
     assert tailer.scan_to_eof() == 0  # waits quietly for the log to appear
+

@@ -129,39 +129,59 @@ def insert_pool_snapshot(conn: sqlite3.Connection, ts: int, data: dict) -> None:
     conn.execute(_POOL_INSERT, pool_row(ts, data))
 
 
-def insert_user_snapshot(conn: sqlite3.Connection, ts: int, user: str, data: dict) -> None:
+def insert_user_snapshot(conn: sqlite3.Connection, ts: int, user: str, data: dict) -> list[dict]:
     """Insert rows for a user file / User: log line.
 
     If the data carries a "worker" array (status files), insert one row per
     worker; otherwise (log lines) insert a single row keyed by the user name.
     Also records "new best" events when a worker's best improves.
+
+    Returns a list of {"worker", "value", "baseline"} for each new best
+    event recorded (baseline = first sighting of that worker).
     """
+    events = []
     workers = data.get("worker")
     if workers:
         for w in workers:
             worker = w.get("workername") or user
             conn.execute(_WORKER_INSERT, worker_row(ts, user, worker, w))
-            record_best(conn, ts, worker, w.get("bestshare"), w.get("bestever"))
+            ev = record_best(conn, ts, worker, w.get("bestshare"), w.get("bestever"))
+            if ev:
+                events.append(ev)
     else:
         conn.execute(_WORKER_INSERT, worker_row(ts, user, user, data))
-        record_best(conn, ts, user, data.get("bestshare"), data.get("bestever"))
+        ev = record_best(conn, ts, user, data.get("bestshare"), data.get("bestever"))
+        if ev:
+            events.append(ev)
+    return events
 
 
 def record_best(conn: sqlite3.Connection, ts: int, worker: str,
-                bestshare: float | None, bestever: float | None) -> None:
+                bestshare: float | None, bestever: float | None) -> dict | None:
     """Record an event when a worker's best difficulty exceeds anything seen
-    before. The first sighting of a worker establishes the baseline."""
+    before. The first sighting of a worker establishes the baseline.
+
+    Returns {"worker", "value", "baseline"} when an event was recorded,
+    else None."""
     value = max(bestshare or 0.0, bestever or 0.0)
     if value <= 0:
-        return
+        return None
     row = conn.execute(
         "SELECT MAX(value) AS v FROM best_events WHERE worker = ?", (worker,)
     ).fetchone()
-    if row["v"] is None or value > row["v"]:
+    if row["v"] is None:
         conn.execute(
             "INSERT INTO best_events (ts, worker, value) VALUES (?,?,?)",
             (ts, worker, value),
         )
+        return {"worker": worker, "value": value, "baseline": True}
+    if value > row["v"]:
+        conn.execute(
+            "INSERT INTO best_events (ts, worker, value) VALUES (?,?,?)",
+            (ts, worker, value),
+        )
+        return {"worker": worker, "value": value, "baseline": False}
+    return None
 
 
 def list_bests(conn: sqlite3.Connection, limit: int = 10) -> list[dict]:

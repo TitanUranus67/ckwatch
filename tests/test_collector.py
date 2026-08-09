@@ -59,3 +59,60 @@ def test_collect_once_after_user_appears(log_dir, tmp_path):
     collect_once(conn, cfg, now=1060)
     workers = {w["worker"] for w in db.latest_workers(conn)}
     assert "newminer" in workers
+
+
+def test_collect_once_on_best(log_dir, tmp_path):
+    import json
+
+    cfg = _cfg(log_dir, tmp_path)
+    conn = db.connect(cfg.db_path)
+    alerts = []
+    on_best = lambda w, v: alerts.append((w, v))
+
+    # first collect: every worker's first sighting is a baseline, no alerts
+    collect_once(conn, cfg, now=1000, on_best=on_best)
+    assert alerts == []
+
+    # gamma01 beats its previous best (6.43e9 in the fixture)
+    p = log_dir / "users" / "bitaxe-gamma01"
+    data = json.loads(p.read_text())
+    data["bestshare"] = data["bestever"] = 9.9e9
+    data["worker"][0]["bestshare"] = data["worker"][0]["bestever"] = 9.9e9
+    p.write_text(json.dumps(data))
+    collect_once(conn, cfg, now=1060, on_best=on_best)
+    assert alerts == [("bitaxe-gamma01", 9.9e9)]
+
+
+def test_status_transitions(tmp_path):
+    import time
+
+    from app.collector import _check_status_transitions
+
+    conn = db.connect(str(tmp_path / "t.db"))
+    now = int(time.time())
+    fired = []
+    on_status = lambda w, s: fired.append((w, s))
+
+    def snap(ts, lastshare):
+        db.insert_user_snapshot(conn, ts, "w1", {
+            "hashrate1m": "1T", "shares": 1, "bestshare": 1, "bestever": 1,
+            "lastshare": lastshare,
+        })
+        conn.commit()
+
+    snap(now, now)  # active
+    prev = _check_status_transitions(conn, None, on_status)
+    assert fired == []  # first poll only seeds the baseline
+    assert prev == {"w1": "active"}
+
+    snap(now + 60, now)  # still active -> no event
+    prev = _check_status_transitions(conn, prev, on_status)
+    assert fired == []
+
+    snap(now + 120, now - 2000)  # went offline
+    prev = _check_status_transitions(conn, prev, on_status)
+    assert fired == [("w1", "offline")]
+
+    snap(now + 180, now)  # recovered
+    prev = _check_status_transitions(conn, prev, on_status)
+    assert fired == [("w1", "offline"), ("w1", "active")]

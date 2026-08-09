@@ -14,9 +14,24 @@ from .parsing import parse_pool_status, parse_user_status
 
 log = logging.getLogger("ckwatch.collector")
 
+STATUS_ACTIVE_S = 300
+STATUS_IDLE_S = 1800
 
-def collect_once(conn, cfg: Config, now: int | None = None) -> bool:
-    """Read pool.status + users/* and insert one snapshot. Returns True on success."""
+
+def worker_status(lastshare: int | None, now: int) -> str:
+    age = now - (lastshare or 0)
+    if age < STATUS_ACTIVE_S:
+        return "active"
+    if age < STATUS_IDLE_S:
+        return "idle"
+    return "offline"
+
+
+def collect_once(conn, cfg: Config, now: int | None = None, on_best=None) -> bool:
+    """Read pool.status + users/* and insert one snapshot. Returns True on success.
+
+    on_best(worker, value) is called for each genuine new best (first sightings
+    are baselines and do not fire)."""
     now = now if now is not None else int(time.time())
     pool_path = os.path.join(cfg.log_dir, "pool", "pool.status")
     users_dir = os.path.join(cfg.log_dir, "users")
@@ -46,8 +61,12 @@ def collect_once(conn, cfg: Config, now: int | None = None) -> bool:
         try:
             with open(path, encoding="utf-8") as f:
                 user = parse_user_status(f.read())
-            db.insert_user_snapshot(conn, now, name, user)
+            events = db.insert_user_snapshot(conn, now, name, user)
             inserted = True
+            if on_best:
+                for ev in events:
+                    if not ev["baseline"]:
+                        on_best(ev["worker"], ev["value"])
         except Exception:
             log.exception("failed to read user file %s", path)
 
@@ -55,21 +74,47 @@ def collect_once(conn, cfg: Config, now: int | None = None) -> bool:
     return inserted
 
 
-def _guarded(lock: threading.Lock, fn, *args) -> None:
+def _guarded(lock: threading.Lock, fn, *args):
     with lock:
-        fn(*args)
+        return fn(*args)
 
 
-async def collector_loop(conn, cfg: Config, lock: threading.Lock | None = None) -> None:
+def _check_status_transitions(conn, prev_status: dict | None, on_status) -> dict:
+    """Compare current worker statuses against the previous poll; fire
+    on_status(worker, status) on transitions into/out of "offline".
+    The first poll only seeds the baseline."""
+    now = int(time.time())
+    current = {w["worker"]: worker_status(w.get("lastshare"), now)
+               for w in db.latest_workers(conn)}
+    if prev_status is not None:
+        for worker, status in current.items():
+            prev = prev_status.get(worker)
+            if prev == status:
+                continue
+            if status == "offline" or prev == "offline":
+                on_status(worker, status)
+    return current
+
+
+async def collector_loop(conn, cfg: Config, lock: threading.Lock | None = None,
+                         on_best=None, on_status=None) -> None:
     """Snapshot every cfg.poll_interval seconds; rollup+prune periodically."""
     log.info("collector started (interval=%ss, log_dir=%s)", cfg.poll_interval, cfg.log_dir)
     lock = lock or threading.Lock()
     last_rollup = 0.0
+    prev_status: dict[str, str] | None = None
     while True:
         try:
-            await asyncio.to_thread(_guarded, lock, collect_once, conn, cfg)
+            await asyncio.to_thread(_guarded, lock, collect_once,
+                                    conn, cfg, None, on_best)
         except Exception:
             log.exception("collector iteration failed")
+        if on_status is not None:
+            try:
+                prev_status = await asyncio.to_thread(
+                    _guarded, lock, _check_status_transitions, conn, prev_status, on_status)
+            except Exception:
+                log.exception("status transition check failed")
         now = time.time()
         if now - last_rollup >= cfg.rollup_interval:
             last_rollup = now
