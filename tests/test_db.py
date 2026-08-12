@@ -156,3 +156,16 @@ def test_best_events_from_worker_array(tmp_path):
     assert {(b["worker"], b["value"]) for b in bests} == {
         ("alice.bitaxe", 1.0e9), ("alice.nerd", 3.0e9),
     }
+
+
+def test_best_events_float_precision_dedupe(tmp_path):
+    """The same share printed with different float precision by the status
+    file vs the log line must not record as two events."""
+    conn = db.connect(str(tmp_path / "t.db"))
+    e1 = db.record_best(conn, 1000, "w1", 14733076523.687717, None)
+    e2 = db.record_best(conn, 1060, "w1", 14733076523.68772, None)
+    e3 = db.record_best(conn, 1120, "w1", 14733076524.0, None)  # genuinely higher
+    assert e1 == {"worker": "w1", "value": 14733076523.687717, "baseline": True}
+    assert e2 is None
+    assert e3 is not None and not e3["baseline"]
+    assert len(db.list_bests(conn)) == 2

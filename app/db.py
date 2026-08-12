@@ -169,18 +169,21 @@ def record_best(conn: sqlite3.Connection, ts: int, worker: str,
     row = conn.execute(
         "SELECT MAX(value) AS v FROM best_events WHERE worker = ?", (worker,)
     ).fetchone()
+    # ckpool prints bestshare with slightly different float precision in the
+    # status files vs the log lines, so the same share can differ in the ~7th
+    # decimal between sources. Use a relative epsilon or such shares record
+    # as near-duplicate events.
+    eps = (row["v"] or 0.0) * 1e-12
     if row["v"] is None:
+        is_new, baseline = True, True
+    else:
+        is_new, baseline = value > row["v"] + eps, False
+    if is_new:
         conn.execute(
             "INSERT INTO best_events (ts, worker, value) VALUES (?,?,?)",
             (ts, worker, value),
         )
-        return {"worker": worker, "value": value, "baseline": True}
-    if value > row["v"]:
-        conn.execute(
-            "INSERT INTO best_events (ts, worker, value) VALUES (?,?,?)",
-            (ts, worker, value),
-        )
-        return {"worker": worker, "value": value, "baseline": False}
+        return {"worker": worker, "value": value, "baseline": baseline}
     return None
 
 
