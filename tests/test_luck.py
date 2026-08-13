@@ -29,3 +29,28 @@ def test_difficulty_cache_fallback(monkeypatch):
     value, source = cache.get()
     assert value == 1.2e14
     assert source == "fallback"
+
+
+def test_solo_luck_extended():
+    import math
+
+    diff = 1.2e14
+    luck = solo_luck(bestshare=6e9, hashrate1d=1e12, difficulty=diff,
+                     accepted=6e10)
+    work_per_block = diff * 2**32
+    assert math.isclose(luck["chance_day"],
+                        1 - math.exp(-1e12 * 86400 / work_per_block))
+    assert math.isclose(luck["chance_week"],
+                        1 - math.exp(-1e12 * 7 * 86400 / work_per_block))
+    assert math.isclose(luck["chance_year"],
+                        1 - math.exp(-1e12 * 365 * 86400 / work_per_block))
+    assert luck["network_hashrate"] == work_per_block / 600
+    assert math.isclose(luck["network_share_pct"],
+                        1e12 / luck["network_hashrate"] * 100)
+    assert math.isclose(luck["effort_pct"], 6e10 / diff * 100)
+
+
+def test_solo_luck_extended_absent_without_data():
+    luck = solo_luck(bestshare=1, hashrate1d=0, difficulty=1.2e14)
+    assert "chance_day" not in luck
+    assert "effort_pct" not in luck  # no accepted passed

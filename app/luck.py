@@ -1,10 +1,11 @@
 """Solo-luck helpers: network difficulty (mempool.space + fallback),
-best-share percentage, and estimated average time-to-block."""
+best-share percentage, chance-per-period, and estimated time-to-block."""
 
 from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 import urllib.request
 
@@ -49,17 +50,39 @@ class DifficultyCache:
             return self.fallback, "fallback"
 
 
-def solo_luck(bestshare: float, hashrate1d: float, difficulty: float) -> dict:
-    """Best share as % of network difficulty + estimated avg time to block."""
+BLOCK_INTERVAL_S = 600  # targeted seconds between blocks
+
+
+def solo_luck(bestshare: float, hashrate1d: float, difficulty: float,
+              accepted: float | None = None) -> dict:
+    """Best share as % of network difficulty, ETA, chance per period,
+    lifetime effort, and share of the global network."""
     pct = (bestshare / difficulty * 100.0) if difficulty > 0 else 0.0
     # Expected hashes per block = difficulty * 2^32; eta at current hashrate.
     eta = (difficulty * HASHES_PER_DIFF1 / hashrate1d) if hashrate1d > 0 else None
-    return {
+    out = {
         "bestshare": bestshare,
         "network_difficulty": difficulty,
         "best_share_pct": pct,
         "eta_seconds": eta,
     }
+    if hashrate1d > 0 and difficulty > 0:
+        work_per_block = difficulty * HASHES_PER_DIFF1
+
+        def chance(seconds: float) -> float:
+            # P(at least one block) = 1 - e^(-expected blocks)
+            return 1.0 - math.exp(-hashrate1d * seconds / work_per_block)
+
+        out["chance_day"] = chance(86400)
+        out["chance_week"] = chance(7 * 86400)
+        out["chance_year"] = chance(365 * 86400)
+        # Global hashrate implied by difficulty at the 10-minute target.
+        out["network_hashrate"] = work_per_block / BLOCK_INTERVAL_S
+        out["network_share_pct"] = hashrate1d / out["network_hashrate"] * 100.0
+    if accepted is not None and difficulty > 0:
+        # Cumulative accepted difficulty vs one block's expected work.
+        out["effort_pct"] = accepted / difficulty * 100.0
+    return out
 
 
 def format_eta(seconds: float | None) -> str:

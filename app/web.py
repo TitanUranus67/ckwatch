@@ -128,6 +128,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
             latest.get("bestshare") or 0.0,
             latest.get("hashrate1d") or 0.0,
             difficulty,
+            accepted=latest.get("accepted"),
         )
         luck["difficulty_source"] = diff_source
         luck["eta_human"] = format_eta(luck["eta_seconds"])

@@ -55,6 +55,18 @@ async function getJSON(url) {
   return r.json();
 }
 
+function fmtChance(p) {
+  if (p == null) return "—";
+  if (p >= 0.01) return (p * 100).toFixed(1) + "%";
+  return "1 in " + Math.round(1 / p).toLocaleString("en-US");
+}
+
+function fmtTinyPct(p) {
+  if (p == null) return "—";
+  if (p >= 0.01) return p.toFixed(3) + "%";
+  return p.toExponential(1) + "%";
+}
+
 function card(label, value, sub) {
   return `<div class="card"><div class="label">${label}</div>` +
     `<div class="value">${value}</div>` +
@@ -89,6 +101,13 @@ async function refreshPool() {
        <div class="sub">${fmtDiff(l.bestshare)} of ${fmtDiff(l.network_difficulty)}</div></div>`,
     card("Est. avg time to block", l.eta_human || "unknown",
       "at current 1d hashrate " + fmtHashrate(p.hashrate1d)),
+    card("Chance today", fmtChance(l.chance_day), "of hitting a block"),
+    card("Chance this week", fmtChance(l.chance_week)),
+    card("Chance this year", fmtChance(l.chance_year)),
+    card("Lifetime effort", fmtTinyPct(l.effort_pct),
+      "of the expected work for one block"),
+    card("Share of the network", fmtTinyPct(l.network_share_pct),
+      "vs ~" + fmtHashrate(l.network_hashrate) + " global"),
   ].join("");
 }
 
